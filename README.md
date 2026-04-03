@@ -622,9 +622,21 @@ Built on three principles: **Selective Ingestion** (entropy-driven filtering for
 
 ### ⚡ Quick Start
 
+**Via unified router** (recommended):
+
+```python
+import simplemem_router as simplemem
+
+mem = simplemem.create()  # auto mode — omni backend auto-selected on first multimodal call
+mem.add_text("User loves hiking in the Rocky Mountains.", tags=["session_id:D1"])
+mem.add_image("photo.jpg", tags=["session_id:D1"])
+result = mem.query("What does the user enjoy?", top_k=5)
+```
+
+**Or directly**:
+
 ```bash
-cd OmniSimpleMem
-pip install -e .
+cd OmniSimpleMem && pip install -e .
 ```
 
 ```python
