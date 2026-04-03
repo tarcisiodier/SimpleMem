@@ -452,19 +452,33 @@ This design allows LLM agents to maintain context, recall past information effic
 
 ### 🎓 Basic Usage
 
-SimpleMem provides a **unified entry point** for both single-modal and multimodal memory via `simplemem_router`:
+SimpleMem provides a **unified entry point** via `simplemem_router`. The default `mode="auto"` **automatically detects** which backend to use based on what you call — no manual configuration needed:
+
+```python
+import simplemem_router as simplemem
+
+mem = simplemem.create()  # mode="auto" — backend chosen by first call
+```
+
+The first method you call determines the backend:
+
+| First call | Backend selected | Why |
+|:--|:--|:--|
+| `add_dialogue()` | **Text** (SimpleMem) | Dialogue-based API → text mode |
+| `add_text()` / `add_image()` / `add_audio()` / `add_video()` | **Omni** (Omni-SimpleMem) | Multimodal API → omni mode |
 
 <table>
 <tr>
 <td width="50%">
 
-**📝 Text Mode** (single-modal)
+**📝 Auto → Text** (pure text input)
 
 ```python
 import simplemem_router as simplemem
 
-mem = simplemem.create(mode="text", clear_db=True)
+mem = simplemem.create()  # auto mode
 
+# add_dialogue() → text backend auto-selected
 mem.add_dialogue(
     "Alice",
     "Bob, let's meet at Starbucks tomorrow at 2pm",
@@ -484,13 +498,14 @@ answer = mem.ask("When and where will Alice and Bob meet?")
 </td>
 <td width="50%">
 
-**🧠 Omni Mode** (multimodal)
+**🧠 Auto → Omni** (multimodal input)
 
 ```python
 import simplemem_router as simplemem
 
-mem = simplemem.create(mode="omni", data_dir="./my_memory")
+mem = simplemem.create()  # auto mode
 
+# add_image() → omni backend auto-selected
 mem.add_text(
     "User loves hiking in the Rocky Mountains.",
     tags=["session_id:D1"],
@@ -509,7 +524,39 @@ mem.close()
 </tr>
 </table>
 
-> **💡 Tip**: Use `mode="text"` for lightweight text-only memory with semantic compression. Switch to `mode="omni"` when you need image, audio, or video support.
+> **💡 Tip**: Auto mode picks the lightest backend that fits your data. You can still use `mode="text"` or `mode="omni"` explicitly if you prefer.
+
+---
+
+### 🔌 Router Utilities
+
+The router uses a **registry-based factory** pattern — backends are lazily loaded only when requested, and dependencies are checked before instantiation.
+
+```python
+import simplemem_router as simplemem
+
+# List all registered modes
+simplemem.list_modes()
+# {'text': 'Single-modal text memory with semantic lossless compression',
+#  'omni': 'Multimodal memory — text, image, audio, video (Omni-SimpleMem)'}
+
+# Check if a mode's dependencies are satisfied
+simplemem.is_available("omni")  # True / False
+
+# Check which mode was auto-selected
+mem = simplemem.create()
+print(mem.mode)  # "auto" (pending), "text", or "omni"
+
+# Register a custom backend
+simplemem.register(
+    mode="my_backend",
+    module_path="my_package.memory",
+    class_name="MyMemorySystem",
+    description="Custom memory backend",
+    required_deps=["my_package"],
+)
+mem = simplemem.create(mode="my_backend")
+```
 
 ---
 
