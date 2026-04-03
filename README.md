@@ -108,7 +108,7 @@
 
 <br/>
 
-[Overview](#-overview) • [Quick Start](#-quick-start) • [Docker](#-run-with-docker) • [Omni-SimpleMem](#-omni-simplemem-multimodal-memory) • [Cross-Session Memory](#-cross-session-memory) • [MCP Server](#-mcp-server) • [Evaluation](#-evaluation) • [Citation](#-citation)
+[🚀 Quick Start](#-quick-start) • [🌟 Overview](#-overview) • [📈 Results](#-results) • [🧠 Omni-SimpleMem](#-omni-simplemem-multimodal-memory) • [📦 Installation](#-installation) • [🔄 Cross-Session Memory](#-cross-session-memory-text-memory) • [🔌 MCP Server](#-mcp-server-text-memory) • [📝 Citation](#-citation)
 
 </div>
 
@@ -131,37 +131,136 @@
 
 ## 📑 Table of Contents
 
-**📝 SimpleMem — Text Memory**
+- [🚀 Quick Start](#-quick-start)
 - [🌟 Overview](#-overview)
-- [🎯 Key Contributions](#-key-contributions)
-- [🚀 Performance Highlights](#-performance-highlights)
+- [📈 Results](#-results)
+- [📝 SimpleMem: Text Memory](#-simplemem-text-memory)
+- [🧠 Omni-SimpleMem: Multimodal Memory](#-omni-simplemem-multimodal-memory)
 - [📦 Installation](#-installation)
-- [⚡ Quick Start](#-quick-start)
-
-**🧠 Omni-SimpleMem — Multimodal Memory**
-- [🌟 Omni Overview](#-omni-simplemem-multimodal-memory)
-
-**🔗 Shared Infrastructure**
-- [🔄 Cross-Session Memory](#-cross-session-memory) *(text memory)*
-- [🔌 MCP Server](#-mcp-server) *(text memory)*
-- [🐳 Docker](#-run-with-docker) *(text memory)*
-
-**📋 Other**
+- [🐳 Docker](#-run-with-docker)
+- [🔌 Router Utilities](#-router-utilities)
+- [🔄 Cross-Session Memory](#-cross-session-memory-text-memory)
+- [🔌 MCP Server](#-mcp-server-text-memory)
 - [🗺️ Roadmap](#️-roadmap)
 - [📊 Evaluation](#-evaluation)
 - [📝 Citation](#-citation)
 
 ---
 
+## 🚀 Quick Start
+
+### 🧠 Understanding the Basic Workflow
+
+At a high level, SimpleMem works as a long-term memory system for LLM-based agents. The workflow consists of three simple steps:
+
+1. **Store information** – Dialogues or facts are processed and converted into structured, atomic memories.
+2. **Index memory** – Stored memories are organized using semantic embeddings and structured metadata.
+3. **Retrieve relevant memory** – When a query is made, SimpleMem retrieves the most relevant stored information based on meaning rather than keywords.
+
+This design allows LLM agents to maintain context, recall past information efficiently, and avoid repeatedly processing redundant history.
+
+### 🎓 Basic Usage
+
+SimpleMem provides a **unified entry point** via `simplemem_router`. The default `mode="auto"` **automatically detects** which backend to use based on what you call — no manual configuration needed:
+
+```python
+import simplemem_router as simplemem
+
+mem = simplemem.create()  # mode="auto" — backend chosen by first call
+```
+
+The first method you call determines the backend:
+
+| First call | Backend selected | Why |
+|:--|:--|:--|
+| `add_dialogue()` | **Text** (SimpleMem) | Dialogue-based API → text mode |
+| `add_text()` / `add_image()` / `add_audio()` / `add_video()` | **Omni** (Omni-SimpleMem) | Multimodal API → omni mode |
+
+<table>
+<tr>
+<td width="50%">
+
+**📝 Auto → Text** (pure text input)
+
+```python
+import simplemem_router as simplemem
+
+mem = simplemem.create()  # auto mode
+
+# add_dialogue() → text backend auto-selected
+mem.add_dialogue(
+    "Alice",
+    "Bob, let's meet at Starbucks tomorrow at 2pm",
+    "2025-11-15T14:30:00",
+)
+mem.add_dialogue(
+    "Bob",
+    "Sure, I'll bring the market analysis report",
+    "2025-11-15T14:31:00",
+)
+mem.finalize()
+
+answer = mem.ask("When and where will Alice and Bob meet?")
+# → "16 November 2025 at 2:00 PM at Starbucks"
+```
+
+</td>
+<td width="50%">
+
+**🧠 Auto → Omni** (multimodal input)
+
+```python
+import simplemem_router as simplemem
+
+mem = simplemem.create()  # auto mode
+
+# add_image() → omni backend auto-selected
+mem.add_text(
+    "User loves hiking in the Rocky Mountains.",
+    tags=["session_id:D1"],
+)
+mem.add_image("photo.jpg", tags=["session_id:D1"])
+mem.add_audio("voice_note.wav", tags=["session_id:D1"])
+
+result = mem.query("What does the user enjoy?", top_k=5)
+for item in result.items:
+    print(item["summary"])
+
+mem.close()
+```
+
+</td>
+</tr>
+</table>
+
+> **💡 Tip**: Auto mode picks the lightest backend that fits your data. You can still use `mode="text"` or `mode="omni"` explicitly if you prefer.
+
+---
+
+### 🚄 Advanced: Parallel Processing
+
+For large-scale dialogue processing, enable parallel mode:
+
+```python
+import simplemem_router as simplemem
+
+mem = simplemem.create(
+    mode="text",
+    clear_db=True,
+    enable_parallel_processing=True,  # ⚡ Parallel memory building
+    max_parallel_workers=8,
+    enable_parallel_retrieval=True,   # 🔍 Parallel query execution
+    max_retrieval_workers=4
+)
+```
+
+> **💡 Pro Tip**: Parallel processing significantly reduces latency for batch operations!
+
+---
+
 ## 🌟 Overview
 
-<div align="center">
-<img src="fig/Fig_tradeoff.png" alt="Performance vs Efficiency Trade-off" width="900"/>
-
-*SimpleMem achieves superior F1 score (43.24%) with minimal token cost (~550), occupying the ideal top-left position.*
-</div>
-
-**SimpleMem** is an efficient memory framework based on **semantic lossless compression** that addresses the fundamental challenge of **efficient long-term memory for LLM agents**. Unlike existing systems that either passively accumulate redundant context or rely on expensive iterative reasoning loops, SimpleMem maximizes **information density** and **token utilization** through a three-stage pipeline:
+**SimpleMem** is a family of efficient memory frameworks — **SimpleMem** for text and **Omni-SimpleMem** for multimodal (text, image, audio, video) — based on **semantic lossless compression** that addresses the fundamental challenge of **efficient long-term memory for LLM agents**. Unlike existing systems that either passively accumulate redundant context or rely on expensive iterative reasoning loops, SimpleMem maximizes **information density** and **token utilization** through a three-stage pipeline:
 
 <table>
 <tr>
@@ -192,6 +291,8 @@ Infers search intent to dynamically determine retrieval scope and construct prec
 </tr>
 </table>
 
+> For multimodal memory, see [Omni-SimpleMem](#-omni-simplemem-multimodal-memory) below.
+
 <div align="center">
 <img src="fig/Fig_framework.png" alt="SimpleMem Framework" width="900"/>
 
@@ -203,6 +304,10 @@ Infers search intent to dynamically determine retrieval scope and construct prec
 ### 🏆 Performance Comparison
 
 <div align="center">
+
+<img src="fig/Fig_tradeoff.png" alt="Performance vs Efficiency Trade-off" width="900"/>
+
+*SimpleMem achieves superior F1 score (43.24%) with minimal token cost (~550), occupying the ideal top-left position.*
 
 **Speed Comparison Demo**
 
@@ -225,14 +330,56 @@ Infers search intent to dynamically determine retrieval scope and construct prec
 
 </div>
 
-> **💡 Key Advantages:**
-> - 🏆 **Highest F1 Score**: 43.24% (+26.4% vs. Mem0, +75.6% vs. LightMem)
-> - ⚡ **Fastest Retrieval**: 388.3s (32.7% faster than LightMem, 51.3% faster than Mem0)
-> - 🚀 **Fastest End-to-End**: 480.9s total processing time (12.5× faster than A-Mem)
+---
+
+## 📈 Results
+
+### 📊 Benchmark Results (LoCoMo)
+
+<details open>
+<summary><b>🏆 Cross-Session Memory Comparison</b></summary>
+
+| System | LoCoMo Score | vs SimpleMem |
+|:-------|:------------:|:------------:|
+| **SimpleMem** | **48** | — |
+| Claude-Mem | 29.3 | **+64%** |
+
+</details>
+
+<details>
+<summary><b>🔬 High-Capability Models (GPT-4.1-mini)</b></summary>
+
+| Task Type | SimpleMem F1 | Mem0 F1 | Improvement |
+|:----------|:------------:|:-------:|:-----------:|
+| **MultiHop** | 43.46% | 30.14% | **+43.8%** |
+| **Temporal** | 58.62% | 48.91% | **+19.9%** |
+| **SingleHop** | 51.12% | 41.3% | **+23.8%** |
+
+</details>
+
+<details>
+<summary><b>⚙️ Efficient Models (Qwen2.5-1.5B)</b></summary>
+
+| Metric | SimpleMem | Mem0 | Notes |
+|:-------|:---------:|:----:|:------|
+| **Average F1** | 25.23% | 23.77% | Competitive with 99× smaller model |
+
+</details>
+
+### 🧠 Omni-SimpleMem Results
+
+<table>
+<tr>
+<td align="center" width="140">📈 <b>+411%</b><br><sub>LoCoMo F1</sub></td>
+<td align="center" width="140">📈 <b>+214%</b><br><sub>Mem-Gallery F1</sub></td>
+<td align="center" width="140">⚡ <b>5.81 q/s</b><br><sub>3.5x faster</sub></td>
+<td align="center" width="140">🧠 <b>4 modalities</b><br><sub>Text · Image · Audio · Video</sub></td>
+</tr>
+</table>
 
 ---
 
-## 🎯 Key Contributions
+## 📝 SimpleMem: Text Memory
 
 ### 1️⃣ Semantic Structured Compression
 
@@ -305,39 +452,19 @@ The system then executes **parallel multi-view retrieval** across semantic, lexi
 
 ---
 
-## 🚀 Performance Highlights
+<div align="center">
 
-### 📊 Benchmark Results (LoCoMo)
+# 🧠 Omni-SimpleMem: Multimodal Memory
 
-<details open>
-<summary><b>🏆 Cross-Session Memory Comparison</b></summary>
+**NEW** — SimpleMem now handles text, image, audio & video.
 
-| System | LoCoMo Score | vs SimpleMem |
-|:-------|:------------:|:------------:|
-| **SimpleMem** | **48** | — |
-| Claude-Mem | 29.3 | **+64%** |
+</div>
 
-</details>
+**Omni-SimpleMem** extends SimpleMem to **unified multimodal memory** — supporting text, image, audio, and video experiences with state-of-the-art accuracy across all five LLM backbones tested.
 
-<details>
-<summary><b>🔬 High-Capability Models (GPT-4.1-mini)</b></summary>
+Built on three principles: **Selective Ingestion** (entropy-driven filtering for each modality), **Progressive Retrieval** (hybrid FAISS + BM25 search with pyramid token-budget expansion), and **Knowledge Graph Augmentation** (multi-hop cross-modal reasoning).
 
-| Task Type | SimpleMem F1 | Mem0 F1 | Improvement |
-|:----------|:------------:|:-------:|:-----------:|
-| **MultiHop** | 43.46% | 30.14% | **+43.8%** |
-| **Temporal** | 58.62% | 48.91% | **+19.9%** |
-| **SingleHop** | 51.12% | 41.3% | **+23.8%** |
-
-</details>
-
-<details>
-<summary><b>⚙️ Efficient Models (Qwen2.5-1.5B)</b></summary>
-
-| Metric | SimpleMem | Mem0 | Notes |
-|:-------|:---------:|:----:|:------|
-| **Average F1** | 25.23% | 23.77% | Competitive with 99× smaller model |
-
-</details>
+> 📖 Full documentation, benchmarks, and architecture details: [**Omni-SimpleMem →**](OmniSimpleMem/)
 
 ---
 
@@ -438,97 +565,7 @@ docker compose down                 # Stop and remove containers
 
 ---
 
-## ⚡ Quick Start
-
-### 🧠 Understanding the Basic Workflow
-
-At a high level, SimpleMem works as a long-term memory system for LLM-based agents. The workflow consists of three simple steps:
-
-1. **Store information** – Dialogues or facts are processed and converted into structured, atomic memories.
-2. **Index memory** – Stored memories are organized using semantic embeddings and structured metadata.
-3. **Retrieve relevant memory** – When a query is made, SimpleMem retrieves the most relevant stored information based on meaning rather than keywords.
-
-This design allows LLM agents to maintain context, recall past information efficiently, and avoid repeatedly processing redundant history.
-
-### 🎓 Basic Usage
-
-SimpleMem provides a **unified entry point** via `simplemem_router`. The default `mode="auto"` **automatically detects** which backend to use based on what you call — no manual configuration needed:
-
-```python
-import simplemem_router as simplemem
-
-mem = simplemem.create()  # mode="auto" — backend chosen by first call
-```
-
-The first method you call determines the backend:
-
-| First call | Backend selected | Why |
-|:--|:--|:--|
-| `add_dialogue()` | **Text** (SimpleMem) | Dialogue-based API → text mode |
-| `add_text()` / `add_image()` / `add_audio()` / `add_video()` | **Omni** (Omni-SimpleMem) | Multimodal API → omni mode |
-
-<table>
-<tr>
-<td width="50%">
-
-**📝 Auto → Text** (pure text input)
-
-```python
-import simplemem_router as simplemem
-
-mem = simplemem.create()  # auto mode
-
-# add_dialogue() → text backend auto-selected
-mem.add_dialogue(
-    "Alice",
-    "Bob, let's meet at Starbucks tomorrow at 2pm",
-    "2025-11-15T14:30:00",
-)
-mem.add_dialogue(
-    "Bob",
-    "Sure, I'll bring the market analysis report",
-    "2025-11-15T14:31:00",
-)
-mem.finalize()
-
-answer = mem.ask("When and where will Alice and Bob meet?")
-# → "16 November 2025 at 2:00 PM at Starbucks"
-```
-
-</td>
-<td width="50%">
-
-**🧠 Auto → Omni** (multimodal input)
-
-```python
-import simplemem_router as simplemem
-
-mem = simplemem.create()  # auto mode
-
-# add_image() → omni backend auto-selected
-mem.add_text(
-    "User loves hiking in the Rocky Mountains.",
-    tags=["session_id:D1"],
-)
-mem.add_image("photo.jpg", tags=["session_id:D1"])
-mem.add_audio("voice_note.wav", tags=["session_id:D1"])
-
-result = mem.query("What does the user enjoy?", top_k=5)
-for item in result.items:
-    print(item["summary"])
-
-mem.close()
-```
-
-</td>
-</tr>
-</table>
-
-> **💡 Tip**: Auto mode picks the lightest backend that fits your data. You can still use `mode="text"` or `mode="omni"` explicitly if you prefer.
-
----
-
-### 🔌 Router Utilities
+## 🔌 Router Utilities
 
 The router uses a **registry-based factory** pattern — backends are lazily loaded only when requested, and dependencies are checked before instantiation.
 
@@ -560,27 +597,6 @@ mem = simplemem.create(mode="my_backend")
 
 ---
 
-### 🚄 Advanced: Parallel Processing
-
-For large-scale dialogue processing, enable parallel mode:
-
-```python
-import simplemem_router as simplemem
-
-mem = simplemem.create(
-    mode="text",
-    clear_db=True,
-    enable_parallel_processing=True,  # ⚡ Parallel memory building
-    max_parallel_workers=8,
-    enable_parallel_retrieval=True,   # 🔍 Parallel query execution
-    max_retrieval_workers=4
-)
-```
-
-> **💡 Pro Tip**: Parallel processing significantly reduces latency for batch operations!
-
----
-
 ## ❓ Common Setup Issues & Troubleshooting
 
 If you encounter issues while setting up or running SimpleMem for the first time, check the following common cases:
@@ -596,59 +612,6 @@ If you encounter issues while setting up or running SimpleMem for the first time
   ```bash
   python --version
   ```
-
----
-
-<div align="center">
-
-# 🧠 Omni-SimpleMem: Multimodal Memory
-
-**NEW** — SimpleMem now handles text, image, audio & video.
-
-</div>
-
-<table>
-<tr>
-<td align="center" width="140">📈 <b>+411%</b><br><sub>LoCoMo F1</sub></td>
-<td align="center" width="140">📈 <b>+214%</b><br><sub>Mem-Gallery F1</sub></td>
-<td align="center" width="140">⚡ <b>5.81 q/s</b><br><sub>3.5x faster</sub></td>
-<td align="center" width="140">🧠 <b>4 modalities</b><br><sub>Text · Image · Audio · Video</sub></td>
-</tr>
-</table>
-
-**Omni-SimpleMem** extends SimpleMem to **unified multimodal memory** — supporting text, image, audio, and video experiences with state-of-the-art accuracy across all five LLM backbones tested.
-
-Built on three principles: **Selective Ingestion** (entropy-driven filtering for each modality), **Progressive Retrieval** (hybrid FAISS + BM25 search with pyramid token-budget expansion), and **Knowledge Graph Augmentation** (multi-hop cross-modal reasoning).
-
-### ⚡ Quick Start
-
-**Via unified router** (recommended):
-
-```python
-import simplemem_router as simplemem
-
-mem = simplemem.create()  # auto mode — omni backend auto-selected on first multimodal call
-mem.add_text("User loves hiking in the Rocky Mountains.", tags=["session_id:D1"])
-mem.add_image("photo.jpg", tags=["session_id:D1"])
-result = mem.query("What does the user enjoy?", top_k=5)
-```
-
-**Or directly**:
-
-```bash
-cd OmniSimpleMem && pip install -e .
-```
-
-```python
-from omni_memory import OmniMemoryOrchestrator, OmniMemoryConfig
-
-config = OmniMemoryConfig()
-orchestrator = OmniMemoryOrchestrator(config=config, data_dir="./my_memory")
-orchestrator.add_text("User loves hiking in the Rocky Mountains.", tags=["session_id:D1"])
-result = orchestrator.query("What does the user enjoy?", top_k=5)
-```
-
-> 📖 Full documentation, benchmarks, and architecture details: [**Omni-SimpleMem →**](OmniSimpleMem/)
 
 ---
 
