@@ -452,24 +452,64 @@ This design allows LLM agents to maintain context, recall past information effic
 
 ### 🎓 Basic Usage
 
+SimpleMem provides a **unified entry point** for both single-modal and multimodal memory via `simplemem_router`:
+
+<table>
+<tr>
+<td width="50%">
+
+**📝 Text Mode** (single-modal)
+
 ```python
-from main import SimpleMemSystem
+import simplemem_router as simplemem
 
-# 🚀 Initialize system
-system = SimpleMemSystem(clear_db=True)
+mem = simplemem.create(mode="text", clear_db=True)
 
-# 💬 Add dialogues (Stage 1: Semantic Structured Compression)
-system.add_dialogue("Alice", "Bob, let's meet at Starbucks tomorrow at 2pm", "2025-11-15T14:30:00")
-system.add_dialogue("Bob", "Sure, I'll bring the market analysis report", "2025-11-15T14:31:00")
+mem.add_dialogue(
+    "Alice",
+    "Bob, let's meet at Starbucks tomorrow at 2pm",
+    "2025-11-15T14:30:00",
+)
+mem.add_dialogue(
+    "Bob",
+    "Sure, I'll bring the market analysis report",
+    "2025-11-15T14:31:00",
+)
+mem.finalize()
 
-# ✅ Finalize atomic encoding
-system.finalize()
-
-# 🔎 Query with intent-aware retrieval (Stage 3: Intent-Aware Retrieval Planning)
-answer = system.ask("When and where will Alice and Bob meet?")
-print(answer)
-# Output: "16 November 2025 at 2:00 PM at Starbucks"
+answer = mem.ask("When and where will Alice and Bob meet?")
+# → "16 November 2025 at 2:00 PM at Starbucks"
 ```
+
+</td>
+<td width="50%">
+
+**🧠 Omni Mode** (multimodal)
+
+```python
+import simplemem_router as simplemem
+
+mem = simplemem.create(mode="omni", data_dir="./my_memory")
+
+mem.add_text(
+    "User loves hiking in the Rocky Mountains.",
+    tags=["session_id:D1"],
+)
+mem.add_image("photo.jpg", tags=["session_id:D1"])
+mem.add_audio("voice_note.wav", tags=["session_id:D1"])
+
+result = mem.query("What does the user enjoy?", top_k=5)
+for item in result.items:
+    print(item["summary"])
+
+mem.close()
+```
+
+</td>
+</tr>
+</table>
+
+> **💡 Tip**: Use `mode="text"` for lightweight text-only memory with semantic compression. Switch to `mode="omni"` when you need image, audio, or video support.
 
 ---
 
@@ -478,7 +518,10 @@ print(answer)
 For large-scale dialogue processing, enable parallel mode:
 
 ```python
-system = SimpleMemSystem(
+import simplemem_router as simplemem
+
+mem = simplemem.create(
+    mode="text",
     clear_db=True,
     enable_parallel_processing=True,  # ⚡ Parallel memory building
     max_parallel_workers=8,
