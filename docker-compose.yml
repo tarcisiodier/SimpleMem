@@ -7,8 +7,6 @@ services:
     volumes:
       # Named volume so container user (appuser) can write; bind mount ./data often has wrong host ownership
       - simplemem_data:/app/MCP/data
-    ports:
-      - "8000:8000"
     environment:
       - DATA_DIR=/app/MCP/data
       - LANCEDB_PATH=/app/MCP/data/lancedb
