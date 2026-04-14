@@ -1,6 +1,5 @@
 services:
   simplemem:
-    container_name: simplemem
     build:
       context: .
       dockerfile: ./Dockerfile
